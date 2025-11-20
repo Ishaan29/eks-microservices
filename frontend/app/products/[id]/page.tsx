@@ -13,8 +13,10 @@ export interface Product {
 // This function simulates fetching data
 async function getProduct(id: string): Promise<Product | undefined> {
   try {
+    // Use environment variable for Docker, fallback to localhost for local dev
+    const API_URL = process.env.NEXT_PUBLIC_PRODUCTS_API_URL || 'http://localhost:8000';
     // Connects to your Products API running on port 8000
-    const res = await fetch(`http://localhost:8000/api/products/${id}`, {
+    const res = await fetch(`${API_URL}/api/products/${id}`, {
       cache: 'no-store', 
     });
 

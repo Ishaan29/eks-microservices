@@ -29,7 +29,10 @@ class OrderPayload(BaseModel):
 
 # --- FastAPI App ---
 app = FastAPI()
-INVENTORY_API_URL = "http://localhost:8002/api/inventory/reduce"
+
+# Read from environment variable, fallback to localhost for local development
+import os
+INVENTORY_API_URL = os.getenv("INVENTORY_API_URL", "http://localhost:8002/api/inventory/reduce")
 
 # --- CORS Configuration ---
 origins = [

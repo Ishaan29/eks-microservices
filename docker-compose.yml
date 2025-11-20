@@ -28,7 +28,9 @@ services:
     container_name: frontend
     ports:
       - "3000:3000"
-   
+    environment:
+      NEXT_PUBLIC_PRODUCTS_API_URL: http://products-api:8000
+      NEXT_PUBLIC_ORDERS_API_URL: http://orders-api:8001
     depends_on:
       - products-api
       - orders-api

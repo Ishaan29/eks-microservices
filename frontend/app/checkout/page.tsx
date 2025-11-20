@@ -77,7 +77,11 @@ export default function CheckoutPage() {
                 total: grandTotal
             };
 
-            const response = await fetch('http://localhost:8001/api/orders', {
+            // For client-side fetch, we need to use localhost since it runs in the browser
+            // The browser doesn't have access to Docker service names
+            const API_URL = typeof window !== 'undefined' ? 'http://localhost:8001' : (process.env.NEXT_PUBLIC_ORDERS_API_URL || 'http://localhost:8001');
+            
+            const response = await fetch(`${API_URL}/api/orders`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

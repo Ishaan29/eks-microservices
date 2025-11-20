@@ -13,8 +13,10 @@ interface Product {
 // --- NEW: API Data Fetching Function ---
 async function getProducts(): Promise<Product[] | null> {
   try {
+    // Use environment variable for Docker, fallback to localhost for local dev
+    const API_URL = process.env.NEXT_PUBLIC_PRODUCTS_API_URL || 'http://localhost:8000';
     // We fetch data from our new API microservice
-    const res = await fetch('http://localhost:8000/api/products', {
+    const res = await fetch(`${API_URL}/api/products`, {
       // Use 'no-store' to ensure data is fresh on every request (good for development)
       // For production, we'd use 'force-cache' or revalidation
       cache: 'no-store', 
@@ -45,10 +47,10 @@ export default async function Home() {
       <div className="max-w-xl mx-auto p-10 bg-white shadow-xl rounded-xl text-center mt-10">
         <h1 className="text-3xl font-bold text-red-600">API Connection Error</h1>
         <p className="text-gray-600 my-4">
-          Failed to connect to the Products API at `http://localhost:8000`.
+          Failed to connect to the Products API.
         </p>
         <p className="text-sm text-gray-500">
-          Please ensure the Python FastAPI server (`products-api`) is running in a separate terminal.
+          Please ensure the Python FastAPI server (`products-api`) is running.
         </p>
       </div>
     )

@@ -15,8 +15,10 @@ interface Order {
 // --- API Data Fetching Function ---
 async function getOrders(): Promise<Order[] | null> {
   try {
+    // Use environment variable for Docker, fallback to localhost for local dev
+    const API_URL = process.env.NEXT_PUBLIC_ORDERS_API_URL || 'http://localhost:8001';
     // We fetch data from our Orders API microservice
-    const res = await fetch('http://localhost:8001/api/orders', {
+    const res = await fetch(`${API_URL}/api/orders`, {
       // We must use 'no-store' to ensure this data is always fresh
       cache: 'no-store', 
     });
