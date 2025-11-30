@@ -6,6 +6,9 @@ services:
     container_name: products-api
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/products-api/retail.db:/app/retail.db
+
 
   orders-api:
     build: ./backend/orders-api
@@ -16,12 +19,16 @@ services:
       INVENTORY_API_URL: http://inventory-api:8002/api/inventory/reduce
     depends_on:
       - inventory-api
+    volumes:
+      - ./backend/orders-api/orders.db:/app/orders.db
 
   inventory-api:
     build: ./backend/inventory-api
     container_name: inventory-api
     ports:
       - "8002:8002"
+    volumes:
+      - ./backend/inventory-api/inventory.db:/app/inventory.db
 
   frontend:
     build: ./frontend
