@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: microservices
+data:
+  API_PRODUCTS: "http://products-service.microservices.svc.cluster.local:5001"
+  API_ORDERS: "http://orders-service.microservices.svc.cluster.local:5002"
+  API_INVENTORY: "http://inventory-service.microservices.svc.cluster.local:5003"
