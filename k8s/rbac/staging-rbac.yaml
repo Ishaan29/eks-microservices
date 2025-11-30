@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: staging-service-account
+  namespace: staging
+  annotations:
+    eks.amazonaws.com/role-arn: "" # Set this to your IRSA role ARN if needed
+---
+# Role for staging namespace - least privilege
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: staging
+  name: staging-role
+rules:
+  # Allow reading pods, services, configmaps, secrets
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  # Allow creating and updating pods, services, configmaps
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["create", "update", "patch"]
+  # Allow deleting pods (for deployments)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  # Allow reading and creating deployments, replicasets
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Allow reading and creating ingress
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+# RoleBinding for staging namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-rolebinding
+  namespace: staging
+subjects:
+  - kind: ServiceAccount
+    name: staging-service-account
+    namespace: staging
+  - kind: User
+    name: staging-user
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: staging-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ClusterRole for staging namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: staging-cluster-role
+rules:
+  # Allow reading nodes (for monitoring)
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  # Allow reading namespaces
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding for staging namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: staging-cluster-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: staging-service-account
+    namespace: staging
+  - kind: User
+    name: staging-user
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: staging-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+

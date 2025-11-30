@@ -1,0 +1,261 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EKS Node Groups across multiple Availability Zones'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+  
+  ClusterName:
+    Type: String
+    Default: eks-microservices-cluster
+    Description: Name of the EKS cluster
+  
+  ClusterControlPlaneSecurityGroupId:
+    Type: String
+    Description: Security group ID of the EKS cluster control plane
+  
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where the node groups will be deployed
+  
+  PrivateSubnet1Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private Subnet 1 ID (AZ 1)
+  
+  PrivateSubnet2Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private Subnet 2 ID (AZ 2)
+  
+  NodeInstanceType:
+    Type: String
+    Default: t3.medium
+    AllowedValues: [t3.small, t3.medium, t3.large, t3.xlarge, m5.large, m5.xlarge]
+    Description: EC2 instance type for the node groups
+  
+  NodeGroup1DesiredSize:
+    Type: Number
+    Default: 2
+    Description: Desired number of nodes in Node Group 1
+  
+  NodeGroup1MinSize:
+    Type: Number
+    Default: 1
+    Description: Minimum number of nodes in Node Group 1
+  
+  NodeGroup1MaxSize:
+    Type: Number
+    Default: 4
+    Description: Maximum number of nodes in Node Group 1
+  
+  NodeGroup2DesiredSize:
+    Type: Number
+    Default: 2
+    Description: Desired number of nodes in Node Group 2
+  
+  NodeGroup2MinSize:
+    Type: Number
+    Default: 1
+    Description: Minimum number of nodes in Node Group 2
+  
+  NodeGroup2MaxSize:
+    Type: Number
+    Default: 4
+    Description: Maximum number of nodes in Node Group 2
+  
+  NodeAmiType:
+    Type: String
+    Default: AL2_x86_64
+    AllowedValues: [AL2_x86_64, AL2_ARM_64, AL2023_x86_64_STANDARD, AL2023_ARM_64_STANDARD]
+    Description: AMI type for the node groups
+  
+  NodeDiskSize:
+    Type: Number
+    Default: 20
+    Description: Disk size in GB for the node groups
+  
+  NodeGroupKeyName:
+    Type: String
+    Default: ''
+    Description: EC2 Key Pair name for SSH access (optional, leave empty if not needed)
+
+Conditions:
+  HasKeyPair: !Not [!Equals [!Ref NodeGroupKeyName, '']]
+
+Resources:
+  # Node Group 1 IAM Role
+  NodeGroup1Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-${Environment}-nodegroup1-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Node Group 2 IAM Role
+  NodeGroup2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-${Environment}-nodegroup2-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Security Group for Node Groups
+  NodeGroupSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EKS node groups
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 1025
+          ToPort: 65535
+          SourceSecurityGroupId: !Ref ClusterControlPlaneSecurityGroupId
+          Description: Allow traffic from EKS cluster
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref ClusterControlPlaneSecurityGroupId
+          Description: Allow HTTPS from EKS cluster
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-${Environment}-nodegroup-sg'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Node Group 1 (AZ 1)
+  NodeGroup1:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      ClusterName: !Sub '${ClusterName}-${Environment}'
+      NodegroupName: !Sub '${Environment}-nodegroup-1'
+      NodeRole: !GetAtt NodeGroup1Role.Arn
+      Subnets:
+        - !Ref PrivateSubnet1Id
+      InstanceTypes:
+        - !Ref NodeInstanceType
+      AmiType: !Ref NodeAmiType
+      DiskSize: !Ref NodeDiskSize
+      ScalingConfig:
+        DesiredSize: !Ref NodeGroup1DesiredSize
+        MinSize: !Ref NodeGroup1MinSize
+        MaxSize: !Ref NodeGroup1MaxSize
+      RemoteAccess: !If
+        - HasKeyPair
+        - Ec2SshKey: !Ref NodeGroupKeyName
+          SourceSecurityGroups:
+            - !Ref NodeGroupSecurityGroup
+        - !Ref AWS::NoValue
+      UpdateConfig:
+        MaxUnavailable: 1
+      Labels:
+        Environment: !Ref Environment
+        NodeGroup: '1'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-${Environment}-nodegroup-1'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: k8s.io/cluster-autoscaler/enabled
+          Value: 'true'
+        - Key: !Sub 'k8s.io/cluster-autoscaler/${ClusterName}-${Environment}'
+          Value: 'owned'
+
+  # Node Group 2 (AZ 2)
+  NodeGroup2:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      ClusterName: !Sub '${ClusterName}-${Environment}'
+      NodegroupName: !Sub '${Environment}-nodegroup-2'
+      NodeRole: !GetAtt NodeGroup2Role.Arn
+      Subnets:
+        - !Ref PrivateSubnet2Id
+      InstanceTypes:
+        - !Ref NodeInstanceType
+      AmiType: !Ref NodeAmiType
+      DiskSize: !Ref NodeDiskSize
+      ScalingConfig:
+        DesiredSize: !Ref NodeGroup2DesiredSize
+        MinSize: !Ref NodeGroup2MinSize
+        MaxSize: !Ref NodeGroup2MaxSize
+      RemoteAccess: !If
+        - HasKeyPair
+        - Ec2SshKey: !Ref NodeGroupKeyName
+          SourceSecurityGroups:
+            - !Ref NodeGroupSecurityGroup
+        - !Ref AWS::NoValue
+      UpdateConfig:
+        MaxUnavailable: 1
+      Labels:
+        Environment: !Ref Environment
+        NodeGroup: '2'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-${Environment}-nodegroup-2'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: k8s.io/cluster-autoscaler/enabled
+          Value: 'true'
+        - Key: !Sub 'k8s.io/cluster-autoscaler/${ClusterName}-${Environment}'
+          Value: 'owned'
+
+Outputs:
+  NodeGroup1Name:
+    Description: Node Group 1 Name
+    Value: !Ref NodeGroup1
+    Export:
+      Name: !Sub '${Environment}-eks-nodegroup-1-name'
+
+  NodeGroup2Name:
+    Description: Node Group 2 Name
+    Value: !Ref NodeGroup2
+    Export:
+      Name: !Sub '${Environment}-eks-nodegroup-2-name'
+
+  NodeGroup1RoleArn:
+    Description: Node Group 1 IAM Role ARN
+    Value: !GetAtt NodeGroup1Role.Arn
+    Export:
+      Name: !Sub '${Environment}-eks-nodegroup-1-role-arn'
+
+  NodeGroup2RoleArn:
+    Description: Node Group 2 IAM Role ARN
+    Value: !GetAtt NodeGroup2Role.Arn
+    Export:
+      Name: !Sub '${Environment}-eks-nodegroup-2-role-arn'
+
+  NodeGroupSecurityGroupId:
+    Description: Node Group Security Group ID
+    Value: !Ref NodeGroupSecurityGroup
+    Export:
+      Name: !Sub '${Environment}-eks-nodegroup-sg-id'
+

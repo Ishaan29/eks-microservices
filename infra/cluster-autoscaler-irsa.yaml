@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAM Roles for Service Accounts (IRSA) for Cluster Autoscaler'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+  
+  ClusterName:
+    Type: String
+    Default: eks-microservices-cluster
+    Description: Name of the EKS cluster
+  
+  ClusterOidcProviderArn:
+    Type: String
+    Description: ARN of the EKS cluster OIDC provider
+
+Resources:
+  # IAM Role for Cluster Autoscaler
+  ClusterAutoscalerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ClusterName}-${Environment}-cluster-autoscaler-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref ClusterOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                !Sub '${ClusterOidcProviderArn}:sub': 'system:serviceaccount:kube-system:cluster-autoscaler'
+                !Sub '${ClusterOidcProviderArn}:aud': 'sts.amazonaws.com'
+      Policies:
+        - PolicyName: ClusterAutoscalerPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - autoscaling:DescribeAutoScalingGroups
+                  - autoscaling:DescribeAutoScalingInstances
+                  - autoscaling:DescribeLaunchConfigurations
+                  - autoscaling:DescribeScalingActivities
+                  - autoscaling:DescribeTags
+                  - ec2:DescribeInstanceTypes
+                  - ec2:DescribeLaunchTemplateVersions
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - autoscaling:SetDesiredCapacity
+                  - autoscaling:TerminateInstanceInAutoScalingGroup
+                  - ec2:DescribeImages
+                  - ec2:GetInstanceTypesFromInstanceRequirements
+                  - eks:DescribeNodegroup
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    'aws:ResourceTag/k8s.io/cluster-autoscaler/enabled': 'true'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-${Environment}-cluster-autoscaler-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  ClusterAutoscalerRoleArn:
+    Description: IAM Role ARN for Cluster Autoscaler
+    Value: !GetAtt ClusterAutoscalerRole.Arn
+    Export:
+      Name: !Sub '${Environment}-cluster-autoscaler-role-arn'
+

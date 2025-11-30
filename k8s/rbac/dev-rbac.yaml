@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dev-service-account
+  namespace: dev
+  annotations:
+    eks.amazonaws.com/role-arn: "" # Set this to your IRSA role ARN if needed
+---
+# Role for dev namespace - least privilege
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: dev
+  name: dev-role
+rules:
+  # Allow reading pods, services, configmaps, secrets
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  # Allow creating and updating pods, services, configmaps
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["create", "update", "patch"]
+  # Allow deleting pods (for deployments)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  # Allow reading and creating deployments, replicasets
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Allow reading ingress
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+---
+# RoleBinding for dev namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-rolebinding
+  namespace: dev
+subjects:
+  - kind: ServiceAccount
+    name: dev-service-account
+    namespace: dev
+  - kind: User
+    name: dev-user
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: dev-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ClusterRole for dev namespace (for cross-namespace resources if needed)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dev-cluster-role
+rules:
+  # Allow reading nodes (for monitoring)
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  # Allow reading namespaces
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding for dev namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dev-cluster-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: dev-service-account
+    namespace: dev
+  - kind: User
+    name: dev-user
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: dev-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+

@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EKS Cluster Control Plane'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+  
+  ClusterName:
+    Type: String
+    Default: eks-microservices-cluster
+    Description: Name of the EKS cluster
+  
+  KubernetesVersion:
+    Type: String
+    Default: '1.28'
+    Description: Kubernetes version for the cluster
+  
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where the cluster will be deployed
+  
+  PublicSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Public subnet IDs for the cluster endpoint
+  
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnet IDs for the cluster
+
+Resources:
+  # EKS Cluster Service Role
+  EKSClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-cluster-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # EKS Cluster
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Sub '${ClusterName}-${Environment}'
+      Version: !Ref KubernetesVersion
+      RoleArn: !GetAtt EKSClusterRole.Arn
+      ResourcesVpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        SecurityGroupIds:
+          - !Ref EKSClusterSecurityGroup
+        EndpointConfig:
+          PrivateAccess: true
+          PublicAccess: true
+          PublicAccessCidrs:
+            - 0.0.0.0/0
+      Logging:
+        ClusterLogging:
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-${Environment}'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Security Group for EKS Cluster
+  EKSClusterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EKS cluster
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: Allow HTTPS from anywhere
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-${Environment}-sg'
+        - Key: Environment
+          Value: !Ref Environment
+
+
+Outputs:
+  ClusterName:
+    Description: EKS Cluster Name
+    Value: !GetAtt EKSCluster.Name
+    Export:
+      Name: !Sub '${Environment}-eks-cluster-name'
+
+  ClusterArn:
+    Description: EKS Cluster ARN
+    Value: !GetAtt EKSCluster.Arn
+    Export:
+      Name: !Sub '${Environment}-eks-cluster-arn'
+
+  ClusterEndpoint:
+    Description: EKS Cluster Endpoint
+    Value: !GetAtt EKSCluster.Endpoint
+    Export:
+      Name: !Sub '${Environment}-eks-cluster-endpoint'
+
+  ClusterSecurityGroupId:
+    Description: EKS Cluster Security Group ID
+    Value: !GetAtt EKSCluster.ResourcesVpcConfig.ClusterSecurityGroupId
+    Export:
+      Name: !Sub '${Environment}-eks-cluster-sg-id'
+
+  ClusterRoleArn:
+    Description: EKS Cluster Service Role ARN
+    Value: !GetAtt EKSClusterRole.Arn
+    Export:
+      Name: !Sub '${Environment}-eks-cluster-role-arn'
+
+  OidcIssuerUrl:
+    Description: OIDC Issuer URL for IRSA
+    Value: !GetAtt EKSCluster.Identity.Oidc.Issuer
+    Export:
+      Name: !Sub '${Environment}-eks-oidc-issuer-url'
+
