@@ -1,5 +1,6 @@
 import ProductCard from '@/components/ProductCard';
 import Link from 'next/link';
+import { getBaseUrl } from '../utils/config'; 
 
 // Define the Product interface
 interface Product {
@@ -13,17 +14,21 @@ interface Product {
 // --- NEW: API Data Fetching Function ---
 async function getProducts(): Promise<Product[] | null> {
   try {
-    // Use environment variable for Docker, fallback to localhost for local dev
-    const API_URL = process.env.NEXT_PUBLIC_PRODUCTS_API_URL || 'http://localhost:8000';
-    // We fetch data from our new API microservice
-    const res = await fetch(`${API_URL}/api/products`, {
+    // 1. Get the correct URL dynamically using your helper
+    // If Server (Docker) -> http://products-api:8000
+    // If Browser         -> http://localhost:8000
+    const baseUrl = getBaseUrl('products');
+    
+    // Optional: Log this so you can see in your terminal exactly what URL is being used
+    console.log(`[Home Page] Fetching from: ${baseUrl}/api/products`);
+
+    // 2. Fetch data
+    const res = await fetch(`${baseUrl}/api/products`, {
       // Use 'no-store' to ensure data is fresh on every request (good for development)
-      // For production, we'd use 'force-cache' or revalidation
       cache: 'no-store', 
     });
 
     if (!res.ok) {
-      // If the API server is down or returns an error
       throw new Error(`Failed to fetch products: ${res.statusText}`);
     }
 
@@ -41,7 +46,7 @@ export default async function Home() {
   // Call the new API function
   const products = await getProducts();
 
-  // --- NEW: Error handling for when the API is down ---
+  // --- Error handling for when the API is down ---
   if (!products) {
     return (
       <div className="max-w-xl mx-auto p-10 bg-white shadow-xl rounded-xl text-center mt-10">

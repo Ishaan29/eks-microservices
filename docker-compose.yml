@@ -36,8 +36,18 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_PRODUCTS_API_URL: http://products-api:8000
-      NEXT_PUBLIC_ORDERS_API_URL: http://orders-api:8001
+      # 1. CLIENT-SIDE (Browser)
+      # The browser is outside Docker, so it uses localhost
+      - NEXT_PUBLIC_PRODUCTS_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_ORDERS_API_URL=http://localhost:8001
+      - NEXT_PUBLIC_INVENTORY_API_URL=http://localhost:8002
+
+      # 2. SERVER-SIDE (Next.js Node Server)
+      # If getStaticProps/getServerSideProps runs, it is INSIDE Docker.
+      # It must use the container names.
+      - INTERNAL_PRODUCTS_API_URL=http://products-api:8000
+      - INTERNAL_ORDERS_API_URL=http://orders-api:8001
+      - INTERNAL_INVENTORY_API_URL=http://inventory-api:8002
     depends_on:
       - products-api
       - orders-api

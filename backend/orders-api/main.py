@@ -33,7 +33,7 @@ app = FastAPI()
 # Read from environment variable, fallback to localhost for local development
 import os
 INVENTORY_API_URL = os.getenv("INVENTORY_API_URL", "http://localhost:8002/api/inventory/reduce")
-
+print(f"--- CONFIG: Inventory Service URL set to: {INVENTORY_API_URL} ---")
 # --- CORS Configuration ---
 origins = [
     "http://localhost:3000",

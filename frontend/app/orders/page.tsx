@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getBaseUrl } from '../../utils/config';
 
 // --- Types ---
 // This defines the shape of the data we expect from our Orders API
@@ -16,9 +17,9 @@ interface Order {
 async function getOrders(): Promise<Order[] | null> {
   try {
     // Use environment variable for Docker, fallback to localhost for local dev
-    const API_URL = process.env.NEXT_PUBLIC_ORDERS_API_URL || 'http://localhost:8001';
+    const baseUrl = getBaseUrl('orders');
     // We fetch data from our Orders API microservice
-    const res = await fetch(`${API_URL}/api/orders`, {
+    const res = await fetch(`${baseUrl}/api/orders`, {
       // We must use 'no-store' to ensure this data is always fresh
       cache: 'no-store', 
     });
@@ -45,11 +46,9 @@ export default async function OrdersPage() {
       <div className="max-w-xl mx-auto p-10 bg-white shadow-xl rounded-xl text-center mt-10">
         <h1 className="text-3xl font-bold text-red-600">API Connection Error</h1>
         <p className="text-gray-600 my-4">
-          Failed to connect to the Orders API at `http://localhost:8001`.
+          Failed to connect to the Orders API. Is the orders-api running?
         </p>
-        <p className="text-sm text-gray-500">
-          Please ensure the Python FastAPI server (`orders-api`) is running in its terminal.
-        </p>
+      
       </div>
     );
   }
