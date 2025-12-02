@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import ProductDetailsClientWrapper from '@/components/ProductDetailsClientWrapper';
+import { getBaseUrl } from '../../../utils/config';
 
 // Define the same Product interface for consistency
 export interface Product {
@@ -14,9 +15,9 @@ export interface Product {
 async function getProduct(id: string): Promise<Product | undefined> {
   try {
     // Use environment variable for Docker, fallback to localhost for local dev
-    const API_URL = process.env.NEXT_PUBLIC_PRODUCTS_API_URL || 'http://localhost:8000';
+    const baseUrl = getBaseUrl('products');
     // Connects to your Products API running on port 8000
-    const res = await fetch(`${API_URL}/api/products/${id}`, {
+    const res = await fetch(`${baseUrl}/api/products/${id}`, {
       cache: 'no-store', 
     });
 
