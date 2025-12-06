@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: products
-        image: <PRODUCTS_IMAGE>:latest
+        image: 440491339319.dkr.ecr.us-east-1.amazonaws.com/eks-microservices-products-api:latest
         ports:
         - containerPort: 5001
         readinessProbe:

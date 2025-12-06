@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: inventory
-        image: <INVENTORY_IMAGE>:latest
+        image: 440491339319.dkr.ecr.us-east-1.amazonaws.com/eks-microservices-inventory-api:latest
         ports:
         - containerPort: 5003
         readinessProbe:

@@ -5,13 +5,24 @@ metadata:
   namespace: microservices
 spec:
   podSelector:
-    matchLabels:
-      app: products # repeat for each backend in separate NP OR use a broader selector
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - products
+          - orders
+          - inventory
+  policyTypes:
+    - Ingress
   ingress:
     - from:
         - podSelector:
             matchLabels:
               app: frontend
       ports:
-        - protocol: TCP
-          port: 5001
+        - port: 5001
+          protocol: TCP
+        - port: 5002
+          protocol: TCP
+        - port: 5003
+          protocol: TCP

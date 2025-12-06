@@ -11,7 +11,7 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-path: /health
 spec:
   rules:
-    - host: myapp.example.com
+    - host: umdprojectgroup.com
       http:
         paths:
           - path: /api/products
