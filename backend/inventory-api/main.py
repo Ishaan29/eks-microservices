@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List
 from database import engine, inventory_table, create_db_and_tables
 from sqlalchemy import select, update
-
+from seed_db import seed_database
 # --- Pydantic Models (Data Contracts) ---
 # This is what the Orders Service will send us
 # We only need the product ID and the quantity purchased
@@ -33,8 +33,12 @@ app.add_middleware(
 # --- Database Connection ---
 @app.on_event("startup")
 def on_startup():
-    # This creates the 'inventory.db' file and table
+    # 1. Create Tables (if they don't exist)
     create_db_and_tables()
+    
+    # 2. Seed Data (if table is empty)
+    # This will uses the SAME engine, so it connects to RDS
+    seed_database()
 
 # --- API Endpoints ---
 

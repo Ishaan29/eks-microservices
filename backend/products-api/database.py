@@ -1,12 +1,21 @@
+import os
 from sqlalchemy import create_engine, Column, Integer, String, Float, MetaData, Table
-from sqlalchemy.engine import URL
 
-# Define the database file
-DATABASE_URL = "sqlite:///./retail.db"
+# 1. Get DB credentials from Environment Variables (injected by K8s)
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME", "ecommerce_app")
 
-# SQLAlchemy setup
-# The connect_args is necessary for SQLite to allow it to be used in a multi-threaded app like FastAPI
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# 2. Construct the PostgreSQL Connection URL
+# Format: postgresql://user:password@host:port/dbname
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# 3. Create the Engine
+# Note: check_same_thread is REMOVED (it is only for SQLite)
+engine = create_engine(DATABASE_URL)
+
 metadata = MetaData()
 
 # Define the 'products' table structure
@@ -20,7 +29,5 @@ products_table = Table(
     Column("imageUrl", String),
 )
 
-# Function to create the table
 def create_db_and_tables():
-    # This command tells SQLAlchemy to create the table if it doesn't exist
     metadata.create_all(engine)

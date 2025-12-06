@@ -1,34 +1,76 @@
 version: "3.9"
 
 services:
+  # 1. NEW: Local PostgreSQL (Mimics AWS RDS)
+  db:
+    image: postgres:15
+    container_name: local-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=localpass
+      - POSTGRES_DB=ecommerce_app
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Updated Products API
   products-api:
     build: ./backend/products-api
     container_name: products-api
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend/products-api/retail.db:/app/retail.db
+    environment:
+      - DB_HOST=db             # Points to the service name above
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=localpass
+      - DB_NAME=ecommerce_app
+    depends_on:
+      db:
+        condition: service_healthy
 
-
+  # 3. Updated Orders API
   orders-api:
     build: ./backend/orders-api
     container_name: orders-api
     ports:
       - "8001:8001"
     environment:
-      INVENTORY_API_URL: http://inventory-api:8002/api/inventory/reduce
+      - INVENTORY_API_URL=http://inventory-api:8002/api/inventory/reduce
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=localpass
+      - DB_NAME=ecommerce_app
     depends_on:
-      - inventory-api
-    volumes:
-      - ./backend/orders-api/orders.db:/app/orders.db
+      inventory-api:
+        condition: service_started
+      db:
+        condition: service_healthy
+      
+    
 
+  # 4. Updated Inventory API
   inventory-api:
     build: ./backend/inventory-api
     container_name: inventory-api
     ports:
       - "8002:8002"
-    volumes:
-      - ./backend/inventory-api/inventory.db:/app/inventory.db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=localpass
+      - DB_NAME=ecommerce_app
+    depends_on:
+      db:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
@@ -36,15 +78,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # 1. CLIENT-SIDE (Browser)
-      # The browser is outside Docker, so it uses localhost
       - NEXT_PUBLIC_PRODUCTS_API_URL=http://localhost:8000
       - NEXT_PUBLIC_ORDERS_API_URL=http://localhost:8001
       - NEXT_PUBLIC_INVENTORY_API_URL=http://localhost:8002
-
-      # 2. SERVER-SIDE (Next.js Node Server)
-      # If getStaticProps/getServerSideProps runs, it is INSIDE Docker.
-      # It must use the container names.
       - INTERNAL_PRODUCTS_API_URL=http://products-api:8000
       - INTERNAL_ORDERS_API_URL=http://orders-api:8001
       - INTERNAL_INVENTORY_API_URL=http://inventory-api:8002
@@ -52,3 +88,6 @@ services:
       - products-api
       - orders-api
       - inventory-api
+
+volumes:
+  postgres_data:

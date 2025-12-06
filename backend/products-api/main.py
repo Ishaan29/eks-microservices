@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from database import engine, products_table, create_db_and_tables # Import from our new file
-
+from seed_db import seed_database
 # --- FastAPI App ---
 app = FastAPI()
 
@@ -22,9 +22,12 @@ app.add_middleware(
 # This event runs when the FastAPI app starts up
 @app.on_event("startup")
 def on_startup():
-    # This creates the 'retail.db' file and the 'products' table
-    # if they don't already exist.
+    # 1. Create Tables (if they don't exist)
     create_db_and_tables()
+    
+    # 2. Seed Data (if table is empty)
+    # This will uses the SAME engine, so it connects to RDS
+    seed_database()
 
 # --- API Endpoints (Now using the database) ---
 

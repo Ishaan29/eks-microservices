@@ -157,7 +157,7 @@ async def get_all_orders():
     """
     with engine.connect() as conn:
         # Query the 'orders' table
-        query = orders_table.select()
+        query = orders_table.select().order_by(orders_table.c.id.desc())
         result = conn.execute(query).fetchall()
         orders = [dict(row._asdict()) for row in result]
         return orders
