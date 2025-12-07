@@ -25,7 +25,7 @@ spec:
         - name: DB_HOST
           valueFrom:
             configMapKeyRef:
-              name: products-api-config # Change this to the respective API ConfigMap name
+              name: orders-api-config # Change this to the respective API ConfigMap name
               key: DB_HOST
       containers:
       - name: orders-api
