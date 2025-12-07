@@ -1,0 +1,65 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ecommerce-ingress
+  namespace: dev
+  annotations:
+    # 1. Controller Selection: Tells K8s to use the ALB Controller
+    kubernetes.io/ingress.class: alb
+    
+    # 2. ALB Configuration: Defines the type of load balancer
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    
+    # 3. Security (HTTPS/TLS): Required Deliverable
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443' # Automatically redirect HTTP traffic to HTTPS
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-1:440491339319:certificate/42c49e2a-2d1a-4409-a145-dd06cda11aef' # <<-- PASTE CERTIFICATE ARN HERE
+    
+    # 4. Health Checks: ALB must know how to check the frontend
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    
+    # 5. Load Balancer Deletion Policy
+    alb.ingress.kubernetes.io/load-balancer-attributes: deletion_protection.enabled=false
+spec:
+  rules:
+  # 1. Frontend Route (Default path /)
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service # Frontend service name (port 3000)
+            port: 
+              number: 80 
+  # 2. Products API Route
+  - http:
+      paths:
+      - path: /api/products
+        pathType: Prefix
+        backend:
+          service:
+            name: products-api-service
+            port: 
+              number: 80 
+  # 3. Orders API Route
+  - http:
+      paths:
+      - path: /api/orders
+        pathType: Prefix
+        backend:
+          service:
+            name: orders-api-service
+            port: 
+              number: 80 
+  # 4. Inventory API Route
+  - http:
+      paths:
+      - path: /api/inventory
+        pathType: Prefix
+        backend:
+          service:
+            name: inventory-api-service
+            port: 
+              number: 80

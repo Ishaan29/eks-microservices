@@ -1,0 +1,47 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-microservice-egress
+  namespace: dev
+spec:
+  # Select all application pods (Frontend, Orders, Inventory, Products)
+  podSelector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values: [frontend, orders-api, inventory-api, products-api]
+  policyTypes:
+  - Egress
+  
+  egress:
+  
+  # RULE 1: Allow Frontend to talk only to other APIs (Internal Microservice Calls)
+  # This enforces the principle of least privilege: Frontend only needs to talk to the APIs.
+  - to:
+    - podSelector:
+        matchLabels:
+          app: products-api
+    - podSelector:
+        matchLabels:
+          app: orders-api
+    - podSelector:
+        matchLabels:
+          app: inventory-api
+    ports:
+    - protocol: TCP
+      port: 80 # The port used by the ClusterIP Service
+
+  # RULE 2: Allow API pods to talk to the RDS database (Data Access)
+  # NOTE: This rule must be carefully defined to only allow 5432 traffic to your RDS private subnet CIDR.
+  - to:
+    - ipBlock: # THIS MUST BE THE CIDR RANGE OF YOUR RDS PRIVATE SUBNET
+        cidr: 192.168.64.0/19 # <--- REPLACE with your actual RDS Private Subnet CIDR (e.g., 10.0.1.0/24)
+    ports:
+    - protocol: TCP
+      port: 5432 # PostgreSQL port
+  
+  # RULE 3: Allow Egress for updates, ECR pulls, etc. (Often necessary)
+  # This allows the pods to talk to the internet (e.g., ECR, update checks)
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0

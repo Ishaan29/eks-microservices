@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orders-api-config
+  namespace: dev
+data:
+  DB_HOST: "ecommerce-db.c6luam4oys0y.us-east-1.rds.amazonaws.com"
+  DB_USER: "postgres"
+  DB_NAME: "ecommerce_app"
+  DB_PORT: "5432"
+  # Internal URL required for dependency injection (Microservices pattern)
+  INVENTORY_API_URL: "http://inventory-api-service:80/api/inventory/reduce"
