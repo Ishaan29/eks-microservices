@@ -18,13 +18,14 @@ app = FastAPI()
 # --- CORS Configuration ---
 # Allow requests from the Orders Service (port 8001)
 # and the Frontend (port 3000)
-origins = [
-    "http://localhost:3000",
-    "http://localhost:8001",
-]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8001",
+        "https://app.umdprojectgroup.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

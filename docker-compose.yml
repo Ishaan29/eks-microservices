@@ -73,14 +73,20 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_PRODUCTS_API_URL=http://localhost:8000
+        - NEXT_PUBLIC_ORDERS_API_URL=http://localhost:8001
+        - NEXT_PUBLIC_INVENTORY_API_URL=http://localhost:8002
     container_name: frontend
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_PRODUCTS_API_URL=http://localhost:8000
-      - NEXT_PUBLIC_ORDERS_API_URL=http://localhost:8001
-      - NEXT_PUBLIC_INVENTORY_API_URL=http://localhost:8002
+      # - NEXT_PUBLIC_PRODUCTS_API_URL=http://localhost:8000
+      # - NEXT_PUBLIC_ORDERS_API_URL=http://localhost:8001
+      # - NEXT_PUBLIC_INVENTORY_API_URL=http://localhost:8002
       - INTERNAL_PRODUCTS_API_URL=http://products-api:8000
       - INTERNAL_ORDERS_API_URL=http://orders-api:8001
       - INTERNAL_INVENTORY_API_URL=http://inventory-api:8002

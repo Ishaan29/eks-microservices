@@ -7,12 +7,13 @@ from seed_db import seed_database
 app = FastAPI()
 
 # --- CORS Configuration ---
-origins = [
-    "http://localhost:3000", # The Next.js app
-]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://app.umdprojectgroup.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"], # Allow all methods (GET, POST, etc.)
     allow_headers=["*"], # Allow all headers

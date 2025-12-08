@@ -35,12 +35,13 @@ import os
 INVENTORY_API_URL = os.getenv("INVENTORY_API_URL", "http://localhost:8002/api/inventory/reduce")
 print(f"--- CONFIG: Inventory Service URL set to: {INVENTORY_API_URL} ---")
 # --- CORS Configuration ---
-origins = [
-    "http://localhost:3000",
-]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://app.umdprojectgroup.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

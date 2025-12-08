@@ -29,7 +29,7 @@ spec:
               key: DB_HOST
       containers:
       - name: orders-api
-        image: 440491339319.dkr.ecr.us-east-1.amazonaws.com/eks-microservices-orders-api:v2.0.0 
+        image: 440491339319.dkr.ecr.us-east-1.amazonaws.com/eks-microservices-orders-api:v2.3.1
         imagePullPolicy: Always
         
         resources:
