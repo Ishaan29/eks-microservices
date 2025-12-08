@@ -20,7 +20,7 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 # [Security] Create non-root user
 # Source Requirement: "Require non-root containers" 
@@ -37,8 +37,8 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # [Reliability] Healthcheck (using wget since Alpine doesn't have curl by default)
 HEALTHCHECK --interval=30s --timeout=5s \

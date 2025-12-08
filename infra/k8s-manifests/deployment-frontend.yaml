@@ -20,7 +20,7 @@ spec:
         role: public # Placing the frontend on public nodes can sometimes simplify networking
       containers:
       - name: frontend
-        image: 440491339319.dkr.ecr.us-east-1.amazonaws.com/eks-microservices-frontend:v1.0.0
+        image: 440491339319.dkr.ecr.us-east-1.amazonaws.com/eks-microservices-frontend:v2.2.0
         imagePullPolicy: Always
         
         resources:

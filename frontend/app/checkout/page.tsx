@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getBaseUrl } from '../../utils/config';
 
 // Simple component to display success message instead of using alert()
 const NotificationModal: React.FC<{ orderId: string, onClose: () => void }> = ({ orderId, onClose }) => (
@@ -79,8 +80,10 @@ export default function CheckoutPage() {
 
             // For client-side fetch, we need to use localhost since it runs in the browser
             // The browser doesn't have access to Docker service names
-            const API_URL = typeof window !== 'undefined' ? 'http://localhost:8001' : (process.env.NEXT_PUBLIC_ORDERS_API_URL || 'http://localhost:8001');
-            
+            const API_URL = getBaseUrl('orders');
+            if (!API_URL) {
+                throw new Error("Configuration Error: NEXT_PUBLIC_ORDERS_API_URL is missing.");
+            }
             const response = await fetch(`${API_URL}/api/orders`, {
                 method: 'POST',
                 headers: {
