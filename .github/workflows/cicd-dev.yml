@@ -102,17 +102,19 @@ jobs:
 
           # Define microservices (must match build step)
           MICROSERVICES=("frontend" "inventory-api" "orders-api" "products-api")
-          
+
           # Update deployment files
           for SERVICE in "${MICROSERVICES[@]}"; do
-            DEPLOYMENT_FILE="k8s/deployment-${SERVICE}.yaml"
+            # Map service name to deployment file name (remove -api suffix for file lookup)
+            DEPLOYMENT_FILE_NAME="${SERVICE%-api}"
+            DEPLOYMENT_FILE="k8s/deployment-${DEPLOYMENT_FILE_NAME}.yaml"
             IMAGE_NAME="eks-microservices-${SERVICE}"
             NEW_IMAGE="${ECR_REGISTRY}/${IMAGE_NAME}:${VERSION}"
-            
+
             if [ -f "$DEPLOYMENT_FILE" ]; then
               # Backup current deployment
               cp "$DEPLOYMENT_FILE" "${DEPLOYMENT_FILE}.backup"
-              
+
               # Update image in deployment file using sed
               # Pattern matches: image: <any-ecr-url>/eks-microservices-<service>:<any-tag>
               # Try to replace just the version tag first
@@ -122,7 +124,7 @@ jobs:
                 # Fallback: replace entire image line
                 sed -i "s|image:.*${IMAGE_NAME}.*|image: ${NEW_IMAGE}|g" "$DEPLOYMENT_FILE"
               fi
-              
+
               echo "Updated ${DEPLOYMENT_FILE} with image: ${NEW_IMAGE}"
             else
               echo "Warning: ${DEPLOYMENT_FILE} not found, skipping..."
@@ -138,9 +140,11 @@ jobs:
 
           # Define microservices (must match build step)
           MICROSERVICES=("frontend" "inventory-api" "orders-api" "products-api")
-          
+
           for SERVICE in "${MICROSERVICES[@]}"; do
-            DEPLOYMENT_FILE="k8s/deployment-${SERVICE}.yaml"
+            # Map service name to deployment file name (remove -api suffix for file lookup)
+            DEPLOYMENT_FILE_NAME="${SERVICE%-api}"
+            DEPLOYMENT_FILE="k8s/deployment-${DEPLOYMENT_FILE_NAME}.yaml"
             DEPLOYMENT_NAME="${SERVICE}-deployment"
             
             if [ -f "$DEPLOYMENT_FILE" ]; then
@@ -178,17 +182,19 @@ jobs:
 
           # Define microservices (must match build step)
           MICROSERVICES=("frontend" "inventory-api" "orders-api" "products-api")
-          
+
           for SERVICE in "${MICROSERVICES[@]}"; do
             DEPLOYMENT_NAME="${SERVICE}-deployment"
-            
+
             echo "Rolling back ${DEPLOYMENT_NAME}..."
             kubectl rollout undo deployment/${DEPLOYMENT_NAME} -n ${{ env.KUBERNETES_NAMESPACE }} || {
               echo "Warning: Failed to rollback ${DEPLOYMENT_NAME}"
             }
-            
+
             # Restore deployment file from backup
-            DEPLOYMENT_FILE="k8s/deployment-${SERVICE}.yaml"
+            # Map service name to deployment file name (remove -api suffix for file lookup)
+            DEPLOYMENT_FILE_NAME="${SERVICE%-api}"
+            DEPLOYMENT_FILE="k8s/deployment-${DEPLOYMENT_FILE_NAME}.yaml"
             if [ -f "${DEPLOYMENT_FILE}.backup" ]; then
               mv "${DEPLOYMENT_FILE}.backup" "$DEPLOYMENT_FILE"
               echo "Restored ${DEPLOYMENT_FILE} from backup"
