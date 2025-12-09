@@ -23,8 +23,9 @@ metadata:
     alb.ingress.kubernetes.io/load-balancer-attributes: deletion_protection.enabled=false
 spec:
   rules:
-  # Single rule with all paths
-  - http:
+  # ADD HOST HERE - This tells ALB which domain the certificate is for
+  - host: umdprojectgroup.com
+    http:
       paths:
       # API routes must come BEFORE the root path (/)
       # This is because Kubernetes matches paths in order
