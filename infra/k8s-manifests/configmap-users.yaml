@@ -16,7 +16,7 @@ data:
       - system:nodes
       username: system:node:{{EC2PrivateDNSName}}
   mapUsers: |
-    - userarn: arn:aws:iam::440491339319:user/ci-cd-user
-      username: ci-cd-user
+    - userarn: arn:aws:iam::440491339319:user/cicd-user
+      username: cicd-user
       groups:
         - deployers
