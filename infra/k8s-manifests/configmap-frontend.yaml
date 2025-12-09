@@ -11,6 +11,6 @@ data:
   # External URLs (Used by the user's browser via Ingress)
   # Note: These values are embedded at build time in the Docker image
   # The CI/CD pipeline passes these as build args when building the frontend
-  NEXT_PUBLIC_PRODUCTS_API_URL: "https://app.umdprojectgroup.com"
-  NEXT_PUBLIC_ORDERS_API_URL: "https://app.umdprojectgroup.com"
-  NEXT_PUBLIC_INVENTORY_API_URL: "https://app.umdprojectgroup.com"
+  # NEXT_PUBLIC_PRODUCTS_API_URL: "https://app.umdprojectgroup.com"
+  # NEXT_PUBLIC_ORDERS_API_URL: "https://app.umdprojectgroup.com"
+  # NEXT_PUBLIC_INVENTORY_API_URL: "https://app.umdprojectgroup.com"
