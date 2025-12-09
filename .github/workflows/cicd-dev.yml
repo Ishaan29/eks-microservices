@@ -3,9 +3,9 @@ name: CI/CD Pipeline - Dev Branch
 on:
   push:
     branches:
-      - dev
+      - cicd
       - cicd-dev
-      
+
   workflow_dispatch:
 
 env:
@@ -47,35 +47,38 @@ jobs:
         run: |
           VERSION="${{ steps.set-version.outputs.version }}"
           ECR_REGISTRY="${{ env.ECR_REGISTRY }}"
-          
+
           # Define microservices (add more as needed)
-          # Format: "service-name"
-          MICROSERVICES=("products-api")
-          
+          # Format: "service-name:directory"
+          MICROSERVICES=("frontend:frontend" "inventory-api:backend/inventory-api" "orders-api:backend/orders-api" "products-api:backend/products-api")
+
           # Build and push each microservice
-          for SERVICE in "${MICROSERVICES[@]}"; do
-            echo "Building $SERVICE..."
+          for SERVICE_ENTRY in "${MICROSERVICES[@]}"; do
+            SERVICE="${SERVICE_ENTRY%%:*}"
+            BUILD_DIR="${SERVICE_ENTRY#*:}"
+
+            echo "Building $SERVICE from $BUILD_DIR..."
             IMAGE_NAME="eks-microservices-${SERVICE}"
             IMAGE_TAG="${ECR_REGISTRY}/${IMAGE_NAME}:${VERSION}"
-            
+
             # Check if Dockerfile exists
-            if [ ! -f "./backend/${SERVICE}/Dockerfile" ]; then
-              echo "Warning: Dockerfile not found for ${SERVICE}, skipping..."
+            if [ ! -f "./${BUILD_DIR}/Dockerfile" ]; then
+              echo "Warning: Dockerfile not found at ./${BUILD_DIR}/Dockerfile, skipping..."
               continue
             fi
-            
+
             # Build Docker image
-            docker build -t "${IMAGE_TAG}" ./backend/${SERVICE} || {
+            docker build -t "${IMAGE_TAG}" ./${BUILD_DIR} || {
               echo "Failed to build ${SERVICE}"
               exit 1
             }
-            
+
             # Push to ECR
             docker push "${IMAGE_TAG}" || {
               echo "Failed to push ${SERVICE}"
               exit 1
             }
-            
+
             echo "Successfully built and pushed ${IMAGE_TAG}"
             echo "${SERVICE}_image=${IMAGE_TAG}" >> $GITHUB_OUTPUT
           done
@@ -96,9 +99,9 @@ jobs:
         run: |
           VERSION="${{ steps.set-version.outputs.version }}"
           ECR_REGISTRY="${{ env.ECR_REGISTRY }}"
-          
+
           # Define microservices (must match build step)
-          MICROSERVICES=("products-api")
+          MICROSERVICES=("frontend" "inventory-api" "orders-api" "products-api")
           
           # Update deployment files
           for SERVICE in "${MICROSERVICES[@]}"; do
@@ -132,9 +135,9 @@ jobs:
         run: |
           VERSION="${{ steps.set-version.outputs.version }}"
           ROLLBACK_NEEDED=false
-          
+
           # Define microservices (must match build step)
-          MICROSERVICES=("products-api")
+          MICROSERVICES=("frontend" "inventory-api" "orders-api" "products-api")
           
           for SERVICE in "${MICROSERVICES[@]}"; do
             DEPLOYMENT_FILE="k8s/deployment-${SERVICE}.yaml"
@@ -172,9 +175,9 @@ jobs:
         if: failure() && steps.apply-deployments.outcome == 'failure'
         run: |
           echo "Deployment failed, rolling back..."
-          
+
           # Define microservices (must match build step)
-          MICROSERVICES=("products-api")
+          MICROSERVICES=("frontend" "inventory-api" "orders-api" "products-api")
           
           for SERVICE in "${MICROSERVICES[@]}"; do
             DEPLOYMENT_NAME="${SERVICE}-deployment"
