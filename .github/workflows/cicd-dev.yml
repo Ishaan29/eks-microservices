@@ -5,6 +5,7 @@ on:
     branches:
       - cicd
       - cicd-dev
+      - release
 
   workflow_dispatch:
 
