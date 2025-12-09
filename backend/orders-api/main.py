@@ -40,7 +40,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://app.umdprojectgroup.com"
+        "https://umdprojectgroup.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
