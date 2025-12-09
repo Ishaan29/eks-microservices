@@ -8,7 +8,9 @@ data:
   INTERNAL_PRODUCTS_API_URL: "http://products-api-service:80"
   INTERNAL_ORDERS_API_URL: "http://orders-api-service:80"
   INTERNAL_INVENTORY_API_URL: "http://inventory-api-service:80"
-  # External URLs (Used by the user's browser via Ingress) - Will be updated in Phase 4 Step 3
-  # NEXT_PUBLIC_PRODUCTS_API_URL: "https://app.umdprojectgroup.com"
-  # NEXT_PUBLIC_ORDERS_API_URL: "https://app.umdprojectgroup.com"
-  # NEXT_PUBLIC_INVENTORY_API_URL: "https://app.umdprojectgroup.com"
+  # External URLs (Used by the user's browser via Ingress)
+  # Note: These values are embedded at build time in the Docker image
+  # The CI/CD pipeline passes these as build args when building the frontend
+  NEXT_PUBLIC_PRODUCTS_API_URL: "https://app.umdprojectgroup.com"
+  NEXT_PUBLIC_ORDERS_API_URL: "https://app.umdprojectgroup.com"
+  NEXT_PUBLIC_INVENTORY_API_URL: "https://app.umdprojectgroup.com"
