@@ -69,11 +69,25 @@ jobs:
               continue
             fi
 
-            # Build Docker image
-            docker build -t "${IMAGE_TAG}" ./${BUILD_DIR} || {
-              echo "Failed to build ${SERVICE}"
-              exit 1
-            }
+            # Build Docker image with build args for frontend
+            if [ "$SERVICE" == "frontend" ]; then
+              # For frontend, pass NEXT_PUBLIC_* variables as build args
+              # These will be embedded in the Next.js client bundle
+              docker build -t "${IMAGE_TAG}" \
+                --build-arg NEXT_PUBLIC_PRODUCTS_API_URL="https://app.umdprojectgroup.com" \
+                --build-arg NEXT_PUBLIC_ORDERS_API_URL="https://app.umdprojectgroup.com" \
+                --build-arg NEXT_PUBLIC_INVENTORY_API_URL="https://app.umdprojectgroup.com" \
+                ./${BUILD_DIR} || {
+                echo "Failed to build ${SERVICE}"
+                exit 1
+              }
+            else
+              # Build other services normally
+              docker build -t "${IMAGE_TAG}" ./${BUILD_DIR} || {
+                echo "Failed to build ${SERVICE}"
+                exit 1
+              }
+            fi
 
             # Push to ECR
             docker push "${IMAGE_TAG}" || {
@@ -109,7 +123,7 @@ jobs:
           for SERVICE in "${MICROSERVICES[@]}"; do
             # Map service name to deployment file name (remove -api suffix for file lookup)
             DEPLOYMENT_FILE_NAME="${SERVICE%-api}"
-            DEPLOYMENT_FILE="k8s/deployment-${DEPLOYMENT_FILE_NAME}.yaml"
+            DEPLOYMENT_FILE="infra/k8s-manifests/deployment-${DEPLOYMENT_FILE_NAME}.yaml"
             IMAGE_NAME="eks-microservices-${SERVICE}"
             NEW_IMAGE="${ECR_REGISTRY}/${IMAGE_NAME}:${VERSION}"
 
@@ -146,26 +160,26 @@ jobs:
           for SERVICE in "${MICROSERVICES[@]}"; do
             # Map service name to deployment file name (remove -api suffix for file lookup)
             DEPLOYMENT_FILE_NAME="${SERVICE%-api}"
-            DEPLOYMENT_FILE="k8s/deployment-${DEPLOYMENT_FILE_NAME}.yaml"
+            DEPLOYMENT_FILE="infra/k8s-manifests/deployment-${DEPLOYMENT_FILE_NAME}.yaml"
             DEPLOYMENT_NAME="${SERVICE}-deployment"
-            
+
             if [ -f "$DEPLOYMENT_FILE" ]; then
               echo "Applying deployment for ${SERVICE}..."
-              
+
               # Apply deployment
               kubectl apply -f "$DEPLOYMENT_FILE" -n ${{ env.KUBERNETES_NAMESPACE }} || {
                 echo "Failed to apply ${DEPLOYMENT_FILE}"
                 ROLLBACK_NEEDED=true
                 continue
               }
-              
+
               # Wait for rollout to complete
               kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${{ env.KUBERNETES_NAMESPACE }} --timeout=5m || {
                 echo "Rollout failed for ${DEPLOYMENT_NAME}"
                 ROLLBACK_NEEDED=true
                 continue
               }
-              
+
               echo "Successfully deployed ${SERVICE}"
             else
               echo "Warning: ${DEPLOYMENT_FILE} not found, skipping deployment..."
@@ -196,7 +210,7 @@ jobs:
             # Restore deployment file from backup
             # Map service name to deployment file name (remove -api suffix for file lookup)
             DEPLOYMENT_FILE_NAME="${SERVICE%-api}"
-            DEPLOYMENT_FILE="k8s/deployment-${DEPLOYMENT_FILE_NAME}.yaml"
+            DEPLOYMENT_FILE="infra/k8s-manifests/deployment-${DEPLOYMENT_FILE_NAME}.yaml"
             if [ -f "${DEPLOYMENT_FILE}.backup" ]; then
               mv "${DEPLOYMENT_FILE}.backup" "$DEPLOYMENT_FILE"
               echo "Restored ${DEPLOYMENT_FILE} from backup"
@@ -208,5 +222,5 @@ jobs:
       - name: Cleanup backup files
         if: always()
         run: |
-          find k8s -name "*.backup" -delete || true
+          find infra/k8s-manifests -name "*.backup" -delete || true
 
