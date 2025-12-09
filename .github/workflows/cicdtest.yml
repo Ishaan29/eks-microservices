@@ -1,0 +1,199 @@
+name: CI/CD Pipeline - Dev Branch
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 440491339319.dkr.ecr.us-east-1.amazonaws.com
+  KUBERNETES_NAMESPACE: dev
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set image version
+        id: set-version
+        run: |
+          VERSION="v${GITHUB_SHA::8}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Image version: $VERSION"
+
+      - name: Build and push Docker images
+        id: build-images
+        run: |
+          VERSION="${{ steps.set-version.outputs.version }}"
+          ECR_REGISTRY="${{ env.ECR_REGISTRY }}"
+          
+          # Define microservices (add more as needed)
+          # Format: "service-name"
+          MICROSERVICES=("products-api")
+          
+          # Build and push each microservice
+          for SERVICE in "${MICROSERVICES[@]}"; do
+            echo "Building $SERVICE..."
+            IMAGE_NAME="eks-microservices-${SERVICE}"
+            IMAGE_TAG="${ECR_REGISTRY}/${IMAGE_NAME}:${VERSION}"
+            
+            # Check if Dockerfile exists
+            if [ ! -f "./backend/${SERVICE}/Dockerfile" ]; then
+              echo "Warning: Dockerfile not found for ${SERVICE}, skipping..."
+              continue
+            fi
+            
+            # Build Docker image
+            docker build -t "${IMAGE_TAG}" ./backend/${SERVICE} || {
+              echo "Failed to build ${SERVICE}"
+              exit 1
+            }
+            
+            # Push to ECR
+            docker push "${IMAGE_TAG}" || {
+              echo "Failed to push ${SERVICE}"
+              exit 1
+            }
+            
+            echo "Successfully built and pushed ${IMAGE_TAG}"
+            echo "${SERVICE}_image=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          done
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Update Kubernetes deployments
+        id: update-deployments
+        run: |
+          VERSION="${{ steps.set-version.outputs.version }}"
+          ECR_REGISTRY="${{ env.ECR_REGISTRY }}"
+          
+          # Define microservices (must match build step)
+          MICROSERVICES=("products-api")
+          
+          # Update deployment files
+          for SERVICE in "${MICROSERVICES[@]}"; do
+            DEPLOYMENT_FILE="k8s/deployment-${SERVICE}.yaml"
+            IMAGE_NAME="eks-microservices-${SERVICE}"
+            NEW_IMAGE="${ECR_REGISTRY}/${IMAGE_NAME}:${VERSION}"
+            
+            if [ -f "$DEPLOYMENT_FILE" ]; then
+              # Backup current deployment
+              cp "$DEPLOYMENT_FILE" "${DEPLOYMENT_FILE}.backup"
+              
+              # Update image in deployment file using sed
+              # Pattern matches: image: <any-ecr-url>/eks-microservices-<service>:<any-tag>
+              # Try to replace just the version tag first
+              if sed -i "s|\(image:.*${IMAGE_NAME}:\).*|\1${VERSION}|g" "$DEPLOYMENT_FILE" 2>/dev/null; then
+                echo "Updated image version tag"
+              else
+                # Fallback: replace entire image line
+                sed -i "s|image:.*${IMAGE_NAME}.*|image: ${NEW_IMAGE}|g" "$DEPLOYMENT_FILE"
+              fi
+              
+              echo "Updated ${DEPLOYMENT_FILE} with image: ${NEW_IMAGE}"
+            else
+              echo "Warning: ${DEPLOYMENT_FILE} not found, skipping..."
+            fi
+          done
+
+      - name: Apply Kubernetes deployments
+        id: apply-deployments
+        continue-on-error: true
+        run: |
+          VERSION="${{ steps.set-version.outputs.version }}"
+          ROLLBACK_NEEDED=false
+          
+          # Define microservices (must match build step)
+          MICROSERVICES=("products-api")
+          
+          for SERVICE in "${MICROSERVICES[@]}"; do
+            DEPLOYMENT_FILE="k8s/deployment-${SERVICE}.yaml"
+            DEPLOYMENT_NAME="${SERVICE}-deployment"
+            
+            if [ -f "$DEPLOYMENT_FILE" ]; then
+              echo "Applying deployment for ${SERVICE}..."
+              
+              # Apply deployment
+              kubectl apply -f "$DEPLOYMENT_FILE" -n ${{ env.KUBERNETES_NAMESPACE }} || {
+                echo "Failed to apply ${DEPLOYMENT_FILE}"
+                ROLLBACK_NEEDED=true
+                continue
+              }
+              
+              # Wait for rollout to complete
+              kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${{ env.KUBERNETES_NAMESPACE }} --timeout=5m || {
+                echo "Rollout failed for ${DEPLOYMENT_NAME}"
+                ROLLBACK_NEEDED=true
+                continue
+              }
+              
+              echo "Successfully deployed ${SERVICE}"
+            else
+              echo "Warning: ${DEPLOYMENT_FILE} not found, skipping deployment..."
+            fi
+          done
+          
+          if [ "$ROLLBACK_NEEDED" = true ]; then
+            echo "rollback_needed=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Rollback on failure
+        if: failure() && steps.apply-deployments.outcome == 'failure'
+        run: |
+          echo "Deployment failed, rolling back..."
+          
+          # Define microservices (must match build step)
+          MICROSERVICES=("products-api")
+          
+          for SERVICE in "${MICROSERVICES[@]}"; do
+            DEPLOYMENT_NAME="${SERVICE}-deployment"
+            
+            echo "Rolling back ${DEPLOYMENT_NAME}..."
+            kubectl rollout undo deployment/${DEPLOYMENT_NAME} -n ${{ env.KUBERNETES_NAMESPACE }} || {
+              echo "Warning: Failed to rollback ${DEPLOYMENT_NAME}"
+            }
+            
+            # Restore deployment file from backup
+            DEPLOYMENT_FILE="k8s/deployment-${SERVICE}.yaml"
+            if [ -f "${DEPLOYMENT_FILE}.backup" ]; then
+              mv "${DEPLOYMENT_FILE}.backup" "$DEPLOYMENT_FILE"
+              echo "Restored ${DEPLOYMENT_FILE} from backup"
+            fi
+          done
+          
+          echo "Rollback completed"
+
+      - name: Cleanup backup files
+        if: always()
+        run: |
+          find k8s -name "*.backup" -delete || true
+
