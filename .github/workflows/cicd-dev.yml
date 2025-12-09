@@ -6,6 +6,7 @@ on:
       - cicd
       - cicd-dev
       - release
+      - main
 
   workflow_dispatch:
 
