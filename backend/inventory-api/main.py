@@ -24,7 +24,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:8001",
-        "https://app.umdprojectgroup.com"
+        "https://umdprojectgroup.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],

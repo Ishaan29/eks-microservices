@@ -74,9 +74,9 @@ jobs:
               # For frontend, pass NEXT_PUBLIC_* variables as build args
               # These will be embedded in the Next.js client bundle
               docker build -t "${IMAGE_TAG}" \
-                --build-arg NEXT_PUBLIC_PRODUCTS_API_URL="https://app.umdprojectgroup.com" \
-                --build-arg NEXT_PUBLIC_ORDERS_API_URL="https://app.umdprojectgroup.com" \
-                --build-arg NEXT_PUBLIC_INVENTORY_API_URL="https://app.umdprojectgroup.com" \
+                --build-arg NEXT_PUBLIC_PRODUCTS_API_URL="https://umdprojectgroup.com" \
+                --build-arg NEXT_PUBLIC_ORDERS_API_URL="https://umdprojectgroup.com" \
+                --build-arg NEXT_PUBLIC_INVENTORY_API_URL="https://umdprojectgroup.com" \
                 ./${BUILD_DIR} || {
                 echo "Failed to build ${SERVICE}"
                 exit 1
