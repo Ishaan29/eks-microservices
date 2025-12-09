@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-api-deployment
+  namespace: dev
+  labels:
+    app: orders-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orders-api
+  template:
+    metadata:
+      labels:
+        app: orders-api
+    spec:
+      serviceAccountName: external-secrets
+      initContainers: # <-- ADD THIS BLOCK
+      - name: check-db-ready
+        image: busybox:1.36
+        command: ['sh', '-c', 
+          'until nc -z -w 1 ${DB_HOST} 5432; do echo waiting for db; sleep 2; done;']
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: orders-api-config # Change this to the respective API ConfigMap name
+              key: DB_HOST
+      containers:
+      - name: orders-api
+        image: 440491339319.dkr.ecr.us-east-1.amazonaws.com/eks-microservices-orders-api:v2.3.1
+        imagePullPolicy: Always
+        
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+            
+        ports:
+        - containerPort: 8001
+        
+        # Health Checks
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8001
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8001
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          
+        env:
+        # DB Config from ConfigMap
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: orders-api-config
+              key: DB_HOST
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: orders-api-config
+              key: DB_USER
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: orders-api-config
+              key: DB_NAME
+        # Inventory URL from ConfigMap
+        - name: INVENTORY_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: orders-api-config
+              key: INVENTORY_API_URL
+        
+        # DB Secret from K8s Secret
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials 
+              key: password
+              
+        # Pod Security Standards
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001

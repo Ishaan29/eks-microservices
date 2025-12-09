@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-ingress
+  namespace: dev
+spec:
+  # Select all API pods (Products, Orders, Inventory) that need to be reachable
+  podSelector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values: [products-api, orders-api, inventory-api]
+  policyTypes:
+  - Ingress
+  ingress:
+  
+  # RULE 1: INTERNAL SERVICE-TO-SERVICE COMMUNICATION (Frontend to API, API to API)
+  # This fixes the ECONNREFUSED error from the Frontend pod by allowing traffic from other app pods.
+  - from:
+    - podSelector:
+        matchExpressions:
+        - key: app
+          operator: Exists # Allows traffic from any app pod (Frontend, Orders, etc.)
+    ports:
+    - protocol: TCP
+      port: 80 # The port used by the ClusterIP Service (Frontend uses http://products-api-service:80)
+
+  # RULE 2: ALLOW ALB HEALTH CHECKS & INGRESS TRAFFIC (EXTERNAL ACCESS)
+  # This is the crucial fix for the ALB Target Groups remaining Unhealthy.
+  # The ALB routes directly to the Pod's IP on the TARGET PORT (8000, 8001, 8002).
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system # Allows traffic from the system namespace
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: aws-load-balancer-controller # Specifically allows the ALB Controller
+    ports:
+    - protocol: TCP
+      port: 8000 # Products API container port
+    - protocol: TCP
+      port: 8001 # Orders API container port
+    - protocol: TCP
+      port: 8002 # Inventory API container port

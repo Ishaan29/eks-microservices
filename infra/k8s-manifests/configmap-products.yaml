@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: products-api-config
+  namespace: dev
+data:
+  DB_HOST: "ecommerce-db.c6luam4oys0y.us-east-1.rds.amazonaws.com"
+  DB_USER: "postgres"
+  DB_NAME: "ecommerce_app"
+  DB_PORT: "5432" # Although Python defaults to 5432, setting it here is clean
+  # Internal API URLs for cross-service calls (used by other APIs)
+  ORDERS_API_URL: "http://orders-api-service:80"
+  INVENTORY_API_URL: "http://inventory-api-service:80"

@@ -1,0 +1,80 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: ecommerce-cluster
+  region: us-east-1
+  version: "1.30"
+
+availabilityZones: ["us-east-1a", "us-east-1b"]
+
+vpc:
+  clusterEndpoints:
+    publicAccess: true
+    privateAccess: true
+
+cloudWatch:
+  clusterLogging:
+    enableTypes: ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
+iam:
+  withOIDC: true
+  serviceAccounts:
+  - metadata:
+      name: aws-load-balancer-controller
+      namespace: kube-system
+    wellKnownPolicies:
+      awsLoadBalancerController: true
+
+  - metadata:
+      name: cluster-autoscaler
+      namespace: kube-system
+      labels: {aws.amazon.com/cluster-autoscaler-enabled: "true"}
+    wellKnownPolicies:
+      autoScaler: true
+
+  - metadata:
+      name: external-secrets
+      namespace: external-secrets
+    attachPolicyARNs:
+      - "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+
+managedNodeGroups:
+  - name: ng-public
+    instanceType: t3.medium
+    minSize: 2
+    maxSize: 3
+    desiredCapacity: 2
+    volumeSize: 20
+    volumeEncrypted: true
+    ssh:
+      allow: false
+    labels:
+      role: public
+    tags:
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/ecommerce-cluster: "owned"
+
+  - name: ng-private
+    instanceType: t3.medium
+    minSize: 2
+    maxSize: 3
+    desiredCapacity: 2
+    privateNetworking: true
+    volumeSize: 20
+    volumeEncrypted: true
+    ssh:
+      allow: false
+    labels:
+      role: private
+    tags:
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/ecommerce-cluster: "owned"
+
+addons:
+  - name: vpc-cni
+  - name: coredns
+  - name: kube-proxy
+  - name: aws-ebs-csi-driver
+    wellKnownPolicies:
+      ebsCSIController: true

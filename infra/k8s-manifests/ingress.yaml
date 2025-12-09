@@ -1,0 +1,67 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ecommerce-ingress
+  namespace: dev
+  annotations:
+    # 1. Controller Selection
+    kubernetes.io/ingress.class: alb
+    
+    # 2. ALB Configuration
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    
+    # 3. Security (HTTPS/TLS)
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-1:440491339319:certificate/42c49e2a-2d1a-4409-a145-dd06cda11aef'
+    
+    # 4. Health Checks
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    
+    # 5. Load Balancer Deletion Policy
+    alb.ingress.kubernetes.io/load-balancer-attributes: deletion_protection.enabled=false
+spec:
+  rules:
+  # ADD HOST HERE - This tells ALB which domain the certificate is for
+  - host: umdprojectgroup.com
+    http:
+      paths:
+      # API routes must come BEFORE the root path (/)
+      # This is because Kubernetes matches paths in order
+      
+      # 1. Orders API Route
+      - path: /api/orders
+        pathType: Prefix
+        backend:
+          service:
+            name: orders-api-service
+            port: 
+              number: 80
+      
+      # 2. Products API Route
+      - path: /api/products
+        pathType: Prefix
+        backend:
+          service:
+            name: products-api-service
+            port: 
+              number: 80
+      
+      # 3. Inventory API Route
+      - path: /api/inventory
+        pathType: Prefix
+        backend:
+          service:
+            name: inventory-api-service
+            port: 
+              number: 80
+      
+      # 4. Frontend Route (MUST BE LAST - catches everything else)
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port: 
+              number: 80

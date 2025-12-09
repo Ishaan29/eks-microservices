@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  mapRoles: |
+    - rolearn: arn:aws:iam::440491339319:role/eksctl-ecommerce-cluster-nodegroup-NodeInstanceRole-PRXUGMHAaJdG
+      groups:
+      - system:bootstrappers
+      - system:nodes
+      username: system:node:{{EC2PrivateDNSName}}
+    - rolearn: arn:aws:iam::440491339319:role/eksctl-ecommerce-cluster-nodegroup-NodeInstanceRole-ahY4naPps5hM
+      groups:
+      - system:bootstrappers
+      - system:nodes
+      username: system:node:{{EC2PrivateDNSName}}
+  mapUsers: |
+    - userarn: arn:aws:iam::440491339319:user/cicd-user
+      username: cicd-user
+      groups:
+        - deployers

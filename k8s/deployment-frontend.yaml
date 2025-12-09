@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: dev
+  labels:
+    app: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      # Node Selector (Frontend can run on either public or private nodes)
+      nodeSelector:
+        role: public # Placing the frontend on public nodes can sometimes simplify networking
+      containers:
+      - name: frontend
+        image: 440491339319.dkr.ecr.us-east-1.amazonaws.com/eks-microservices-frontend:v2.3.1
+        imagePullPolicy: Always
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "400m"
+            
+        ports:
+        - containerPort: 3000 # Next.js production port
+        
+        # Health Checks
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          
+        # Environment Variables from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: frontend-config # Injects all keys from the frontend-config ConfigMap
+              
+        # Pod Security Standards (Adjusted for Next.js build user)
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false # Next.js might need write access to .next/cache
+          runAsNonRoot: true
+          runAsUser: 1001
