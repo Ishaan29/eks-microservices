@@ -1,0 +1,166 @@
+name: Deploy Monitoring Stack
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+env:
+  NAMESPACE: monitoring
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.30.0'
+
+    - name: Set up kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'v3.12.0'
+
+    - name: Add Helm repos
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add eks https://aws.github.io/eks-charts
+        helm repo update
+
+    - name: Create namespace
+      run: |
+        kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create Grafana Dashboard ConfigMaps
+      run: |
+        kubectl create configmap grafana-dashboard-cpu \
+          --from-file=Observability/dashboards/cpu-dashboard.json \
+          -n $NAMESPACE \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        kubectl create configmap grafana-dashboard-errors \
+          --from-file=Observability/dashboards/errors-dashboard.json \
+          -n $NAMESPACE \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        kubectl create configmap grafana-dashboard-latency \
+          --from-file=Observability/dashboards/latency-dashboard.json \
+          -n $NAMESPACE \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        # Label the ConfigMaps for Grafana to discover them
+        kubectl label configmap grafana-dashboard-cpu grafana_dashboard=1 -n $NAMESPACE --overwrite
+        kubectl label configmap grafana-dashboard-errors grafana_dashboard=1 -n $NAMESPACE --overwrite
+        kubectl label configmap grafana-dashboard-latency grafana_dashboard=1 -n $NAMESPACE --overwrite
+
+    - name: Cleanup existing Helm releases
+      run: |
+        # Check for existing releases in other namespaces and uninstall them
+        if helm list -A | grep -q "monitoring.*prommonitoring"; then
+          echo "Found existing monitoring release in prommonitoring namespace, uninstalling..."
+          helm uninstall monitoring -n prommonitoring || true
+        fi
+        
+        # Clean up orphaned ClusterRoles if they exist
+        kubectl delete clusterrole monitoring-grafana-clusterrole --ignore-not-found=true
+        kubectl delete clusterrolebinding monitoring-grafana-clusterrolebinding --ignore-not-found=true
+
+    - name: Deploy Kube-Prometheus Stack
+      run: |
+        helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+          --namespace $NAMESPACE \
+          --create-namespace \
+          -f Observability/kube-stack/kube-stack-values.yaml \
+          --set grafana.adminPassword=${{ secrets.GRAFANA_ADMIN_PASSWORD }} \
+          --set clusterName=${{ secrets.EKS_CLUSTER_NAME }} \
+          --force \
+          --cleanup-on-fail \
+          --wait \
+          --timeout 10m
+
+    - name: Deploy Fluent Bit
+      run: |
+        helm upgrade --install fluent-bit eks/aws-for-fluent-bit \
+          --namespace kube-system \
+          -f Observability/fluent-bit/fluent-bit-values.yaml \
+          --set cloudWatch.region=${{ env.AWS_REGION }} \
+          --wait \
+          --timeout 5m
+
+    - name: Wait for Grafana to be ready
+      run: |
+        kubectl wait --for=condition=available --timeout=300s deployment/monitoring-grafana -n $NAMESPACE
+
+    - name: Configure Grafana SNS Notification Channel
+      run: |
+        # Get Grafana pod name
+        GRAFANA_POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].metadata.name}')
+
+        # Wait a bit for Grafana to fully initialize
+        sleep 30
+
+        # Create SNS notification channel via Grafana API
+        kubectl exec -n $NAMESPACE $GRAFANA_POD -- curl -X POST \
+          -H "Content-Type: application/json" \
+          -d '{
+            "name": "AWS SNS",
+            "type": "sns",
+            "settings": {
+              "topic": "${{ secrets.SNS_TOPIC_ARN }}",
+              "authProvider": "default",
+              "assumeRoleArn": "${{ secrets.SNS_ASSUME_ROLE_ARN }}"
+            },
+            "isDefault": true
+          }' \
+          http://admin:${{ secrets.GRAFANA_ADMIN_PASSWORD }}@localhost:3000/api/alert-notifications || echo "Notification channel may already exist"
+
+    - name: Apply Grafana Alerts
+      run: |
+        # Get Grafana pod name
+        GRAFANA_POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].metadata.name}')
+
+        # Copy alert configuration to Grafana pod
+        kubectl cp Observability/alerts/grafana-alert.yaml $NAMESPACE/$GRAFANA_POD:/tmp/alert.yaml
+
+        # Apply alerts via Grafana provisioning
+        kubectl exec -n $NAMESPACE $GRAFANA_POD -- curl -X POST \
+          -H "Content-Type: application/yaml" \
+          --data-binary @/tmp/alert.yaml \
+          http://admin:${{ secrets.GRAFANA_ADMIN_PASSWORD }}@localhost:3000/api/v1/provisioning/alert-rules || echo "Alerts configuration applied"
+
+    - name: Patch Grafana and Prometheus services to LoadBalancer
+      run: |
+        kubectl patch svc monitoring-grafana -n $NAMESPACE -p '{"spec": {"type": "LoadBalancer"}}'
+        kubectl patch svc monitoring-kube-prometheus-prometheus -n $NAMESPACE -p '{"spec": {"type": "LoadBalancer"}}'
+
+    - name: Get service endpoints
+      run: |
+        echo "Waiting for LoadBalancer endpoints..."
+        sleep 30
+
+        echo "=== Grafana Service ==="
+        kubectl get svc monitoring-grafana -n $NAMESPACE
+
+        echo "=== Prometheus Service ==="
+        kubectl get svc monitoring-kube-prometheus-prometheus -n $NAMESPACE
+
+        echo "=== Fluent Bit Status ==="
+        kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-for-fluent-bit

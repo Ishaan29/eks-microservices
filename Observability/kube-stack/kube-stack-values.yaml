@@ -1,0 +1,80 @@
+grafana:
+  defaultDashboardsEnabled: true
+  adminPassword: ""
+
+  # Enable dashboard provisioning from ConfigMaps
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      folder: /tmp/dashboards
+      searchNamespace: monitoring
+      provider:
+        foldersFromFilesStructure: true
+
+  # Enable alerting
+  grafana.ini:
+    server:
+      root_url: "https://umdprojectgroup.com/grafana"
+      serve_from_sub_path: true
+    unified_alerting:
+      enabled: true
+    alerting:
+      enabled: false
+
+  # Additional data sources
+  additionalDataSources:
+    - name: CloudWatch
+      type: cloudwatch
+      jsonData:
+        authType: default
+        defaultRegion: us-east-1
+
+fullnameOverride: prometheus-stack
+clusterName: ""
+
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    # Retention settings
+    retention: 30d
+    retentionSize: "50GB"
+
+    # Resource requests/limits
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+
+    # Storage configuration
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+
+# Alertmanager configuration
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+# Enable node exporter for node metrics
+nodeExporter:
+  enabled: true
+
+# Enable kube-state-metrics for cluster state metrics
+kubeStateMetrics:
+  enabled: true
