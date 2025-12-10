@@ -84,6 +84,21 @@ rules:
     resources: ["nodes"]
     verbs: ["get", "list"]
 
+  # CustomResourceDefinitions (for Helm chart CRDs like Prometheus)
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["*"]
+
+  # APIServices (for metrics and custom APIs)
+  - apiGroups: ["apiregistration.k8s.io"]
+    resources: ["apiservices"]
+    verbs: ["*"]
+
+  # AdmissionWebhooks
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["*"]
+
 ---
 # ClusterRoleBinding for cicd-user
 apiVersion: rbac.authorization.k8s.io/v1
