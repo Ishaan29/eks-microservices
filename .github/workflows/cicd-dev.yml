@@ -268,6 +268,18 @@ jobs:
           kubectl label configmap grafana-dashboard-errors grafana_dashboard=1 -n monitoring --overwrite
           kubectl label configmap grafana-dashboard-latency grafana_dashboard=1 -n monitoring --overwrite
 
+      - name: Cleanup existing Helm releases
+        run: |
+          # Check for existing releases in other namespaces and uninstall them
+          if helm list -A | grep -q "monitoring.*prommonitoring"; then
+            echo "Found existing monitoring release in prommonitoring namespace, uninstalling..."
+            helm uninstall monitoring -n prommonitoring || true
+          fi
+          
+          # Clean up orphaned ClusterRoles if they exist
+          kubectl delete clusterrole monitoring-grafana-clusterrole --ignore-not-found=true
+          kubectl delete clusterrolebinding monitoring-grafana-clusterrolebinding --ignore-not-found=true
+
       - name: Deploy Kube-Prometheus Stack
         run: |
           helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
@@ -276,6 +288,8 @@ jobs:
             -f Observability/kube-stack/kube-stack-values.yaml \
             --set grafana.adminPassword=${{ secrets.GRAFANA_ADMIN_PASSWORD }} \
             --set clusterName=${{ secrets.EKS_CLUSTER_NAME }} \
+            --force \
+            --cleanup-on-fail \
             --wait \
             --timeout 10m
 
