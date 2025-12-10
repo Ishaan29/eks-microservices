@@ -1,0 +1,54 @@
+name: Deploy Monitoring Stack
+
+on:
+  push:
+    branches:
+      - dev  
+
+env:
+  NAMESPACE: monitoring
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.30.0' 
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'v3.12.0'
+
+    - name: Add Helm repos
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add eks https://aws.github.io/eks-charts
+        helm repo update
+
+    - name: Deploy Kube-Prometheus Stack
+      run: |
+        helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+          --namespace $NAMESPACE \
+          --create-namespace \
+          -f kube-stack/kube-stack-values.yaml \
+          --set grafana.adminPassword=${{ secrets.GRAFANA_ADMIN_PASSWORD }} \
+          --set clusterName=${{ secrets.EKS_CLUSTER_NAME }}
+
+    - name: Patch Grafana and Prometheus services to LoadBalancer
+      run: |
+        kubectl patch svc monitoring-grafana -n $NAMESPACE -p '{"spec": {"type": "LoadBalancer"}}'
+        kubectl patch svc prometheus-stack-prometheus -n $NAMESPACE -p '{"spec": {"type": "LoadBalancer"}}'
