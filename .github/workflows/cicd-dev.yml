@@ -90,9 +90,7 @@ jobs:
 
       - name: Set up kubeconfig
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
 
       - name: Update Kubernetes deployments
         id: update-deployments
@@ -229,11 +227,9 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Set up kubeconfig
+      - name: Set up kubeconfig for observability
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
 
       - name: Set up Helm
         uses: azure/setup-helm@v3
