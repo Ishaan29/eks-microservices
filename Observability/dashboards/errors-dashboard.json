@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 18,
+  "id": 11,
   "links": [],
   "panels": [
     {
@@ -93,9 +93,9 @@
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+          "displayMode": "hidden",
+          "placement": "right",
+          "showLegend": false
         },
         "tooltip": {
           "hideZeros": false,
@@ -107,7 +107,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "rate(kube_pod_container_status_restarts_total{namespace=\"dev\"}[5m])\r\n",
+          "expr": "kube_pod_container_status_restarts_total{namespace=\"dev\"}",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
