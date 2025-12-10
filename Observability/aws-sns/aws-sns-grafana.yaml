@@ -1,0 +1,12 @@
+apiVersion: 1
+contactPoints:
+    - orgId: 1
+      name: AWS SNS
+      receivers:
+        - uid: af6f8jhspb0g0b
+          type: sns
+          settings:
+            sigv4:
+                region: us-east-1
+            topic_arn: arn:aws:sns:us-east-1:440491339319:PrometheusAlerts
+          disableResolveMessage: false
