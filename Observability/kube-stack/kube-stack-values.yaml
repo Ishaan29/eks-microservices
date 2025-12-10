@@ -15,6 +15,9 @@ grafana:
 
   # Enable alerting
   grafana.ini:
+    server:
+      root_url: "https://umdprojectgroup.com/grafana"
+      serve_from_sub_path: true
     unified_alerting:
       enabled: true
     alerting:
