@@ -1,0 +1,8 @@
+cloudWatch:
+  region: us-east-1
+  logGroupName: /eks/ecommerce-cluster
+  logStreamPrefix: fluentbit
+  autoCreateLogGroup: true
+
+jsonLogs: true
+enableCloudWatchLogs: true
