@@ -50,26 +50,26 @@ prometheus:
         cpu: 2000m
         memory: 4Gi
 
-    # Storage configuration
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 50Gi
+    # Storage configuration - Disabled for development
+    # storageSpec:
+    #   volumeClaimTemplate:
+    #     spec:
+    #       accessModes: ["ReadWriteOnce"]
+    #       resources:
+    #         requests:
+    #           storage: 50Gi
 
 # Alertmanager configuration
 alertmanager:
   enabled: true
   alertmanagerSpec:
-    storage:
-      volumeClaimTemplate:
-        spec:
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 10Gi
+    storage: {}
+      # volumeClaimTemplate:
+      #   spec:
+      #     accessModes: ["ReadWriteOnce"]
+      #     resources:
+      #       requests:
+      #         storage: 10Gi
 
 # Enable node exporter for node metrics
 nodeExporter:
