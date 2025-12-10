@@ -46,11 +46,13 @@ rules:
       - networkpolicies
     verbs: ["*"]
 
-  # RBAC (for ServiceAccounts)
+  # RBAC (for ServiceAccounts and cluster-wide RBAC)
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources:
       - roles
       - rolebindings
+      - clusterroles
+      - clusterrolebindings
     verbs: ["*"]
 
   # Autoscaling
