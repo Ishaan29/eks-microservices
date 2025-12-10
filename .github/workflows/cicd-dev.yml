@@ -208,3 +208,112 @@ jobs:
         run: |
           find k8s -name "*.backup" -delete || true
 
+  deploy-observability:
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    if: success()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Add Helm repos
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add eks https://aws.github.io/eks-charts
+          helm repo update
+
+      - name: Create monitoring namespace
+        run: |
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Grafana Dashboard ConfigMaps
+        run: |
+          kubectl create configmap grafana-dashboard-cpu \
+            --from-file=Observability/dashboards/cpu-dashboard.json \
+            -n monitoring \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create configmap grafana-dashboard-errors \
+            --from-file=Observability/dashboards/errors-dashboard.json \
+            -n monitoring \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create configmap grafana-dashboard-latency \
+            --from-file=Observability/dashboards/latency-dashboard.json \
+            -n monitoring \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Label the ConfigMaps for Grafana to discover them
+          kubectl label configmap grafana-dashboard-cpu grafana_dashboard=1 -n monitoring --overwrite
+          kubectl label configmap grafana-dashboard-errors grafana_dashboard=1 -n monitoring --overwrite
+          kubectl label configmap grafana-dashboard-latency grafana_dashboard=1 -n monitoring --overwrite
+
+      - name: Deploy Kube-Prometheus Stack
+        run: |
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --create-namespace \
+            -f Observability/kube-stack/kube-stack-values.yaml \
+            --set grafana.adminPassword=${{ secrets.GRAFANA_ADMIN_PASSWORD }} \
+            --set clusterName=${{ secrets.EKS_CLUSTER_NAME }} \
+            --wait \
+            --timeout 10m
+
+      - name: Deploy Fluent Bit
+        run: |
+          helm upgrade --install fluent-bit eks/aws-for-fluent-bit \
+            --namespace kube-system \
+            -f Observability/fluent-bit/fluent-bit-values.yaml \
+            --set cloudWatch.region=${{ env.AWS_REGION }} \
+            --wait \
+            --timeout 5m
+
+      - name: Wait for Grafana to be ready
+        run: |
+          kubectl wait --for=condition=available --timeout=300s deployment/monitoring-grafana -n monitoring
+
+      - name: Patch Grafana and Prometheus services to LoadBalancer
+        run: |
+          kubectl patch svc monitoring-grafana -n monitoring -p '{"spec": {"type": "LoadBalancer"}}'
+          kubectl patch svc monitoring-kube-prometheus-prometheus -n monitoring -p '{"spec": {"type": "LoadBalancer"}}' || true
+
+      - name: Get observability endpoints
+        run: |
+          echo "Waiting for LoadBalancer endpoints..."
+          sleep 30
+
+          echo "=== Grafana Service ==="
+          kubectl get svc monitoring-grafana -n monitoring
+
+          echo ""
+          echo "=== Prometheus Service ==="
+          kubectl get svc monitoring-kube-prometheus-prometheus -n monitoring || echo "Prometheus service not found"
+
+          echo ""
+          echo "=== Fluent Bit Status ==="
+          kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-for-fluent-bit
+
