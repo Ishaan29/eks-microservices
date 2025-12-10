@@ -295,6 +295,15 @@ jobs:
           # Clean up orphaned ClusterRoles if they exist
           kubectl delete clusterrole monitoring-grafana-clusterrole --ignore-not-found=true
           kubectl delete clusterrolebinding monitoring-grafana-clusterrolebinding --ignore-not-found=true
+          
+          # Clean up any stuck StatefulSets and PVCs from previous deployments
+          echo "Cleaning up stuck StatefulSets and PVCs if they exist..."
+          kubectl delete statefulset prometheus-prometheus-stack-prometheus -n monitoring --ignore-not-found=true
+          kubectl delete statefulset alertmanager-prometheus-stack-alertmanager -n monitoring --ignore-not-found=true
+          kubectl delete pvc --all -n monitoring --ignore-not-found=true
+          
+          # Wait for cleanup to complete
+          sleep 5
 
       - name: Deploy Kube-Prometheus Stack
         run: |
