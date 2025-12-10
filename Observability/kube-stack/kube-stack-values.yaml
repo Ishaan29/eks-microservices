@@ -1,1 +1,10 @@
+grafana:
+  defaultDashboardsEnabled: true
+  adminPassword: ""
 
+fullnameOverride: prometheus-stack
+clusterName: ""
+
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
