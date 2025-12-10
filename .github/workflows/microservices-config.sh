@@ -6,8 +6,9 @@
 
 MICROSERVICES=(
   "products-api"
+  "orders-api"
+  "inventory-api"
   # Add more microservices here as needed:
-  # "orders-api"
   # "users-api"
   # "payments-api"
 )

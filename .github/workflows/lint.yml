@@ -1,0 +1,70 @@
+name: Lint and Code Quality Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install pre-commit
+        run: |
+          pip install pre-commit
+
+      - name: Run pre-commit hooks
+        run: |
+          pre-commit run --all-files --verbose
+
+      - name: Check Python syntax
+        run: |
+          find backend -name "*.py" -exec python -m py_compile {} \;
+
+      - name: YAML Lint
+        run: |
+          pip install yamllint
+          yamllint -d '{extends: default, rules: {line-length: {max: 120}}}' .github/workflows/*.yml k8s/*.yaml infra/k8s-manifests/*.yaml || true
+
+      - name: Shell Script Lint
+        run: |
+          if command -v shellcheck &> /dev/null; then
+            find scripts -name "*.sh" -exec shellcheck {} \;
+          fi
+
+  commit-message-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages
+        run: |
+          # Check if commits follow conventional commit format
+          git log --oneline origin/${{ github.base_ref }}..HEAD | while read commit; do
+            if ! echo "$commit" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|ci|perf)(\(.+\))?:"; then
+              echo "❌ Commit message doesn't follow conventional commits format: $commit"
+              echo "Format: <type>(<scope>): <subject>"
+              exit 1
+            fi
+          done
+          echo "✅ All commit messages follow conventional commits format"
+

@@ -15,8 +15,19 @@ For detailed setup instructions, see [CICD_SETUP.md](./CICD_SETUP.md).
 
 ### Features
 
-- ✅ Automatic Docker image building and ECR push
-- ✅ Kubernetes deployment automation
-- ✅ Version tagging using GitHub SHA
-- ✅ Automatic rollback on deployment failure
-- ✅ Multi-microservice support
+- Automatic Docker image building and ECR push
+- Kubernetes deployment automation
+- Version tagging using GitHub SHA
+- Automatic rollback on deployment failure
+- Multi-microservice support
+
+## Contributing
+
+We welcome contributions! Please read our [Contributing Guidelines](./CONTRIBUTING.md) before submitting PRs.
+
+### Quick Links
+
+- [Contributing Guide](./CONTRIBUTING.md) - How to contribute
+- [Code of Conduct](./CONTRIBUTING.md#code-of-conduct) - Community guidelines
+- [Issue Templates](.github/ISSUE_TEMPLATE/) - Bug reports and feature requests
+- [PR Template](.github/pull_request_template.md) - Pull request guidelines

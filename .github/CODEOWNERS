@@ -1,0 +1,54 @@
+# CODEOWNERS file
+# This file defines code owners for different parts of the repository
+# Each line is a file pattern followed by one or more owners
+# Owners are automatically requested for review when PRs touch their code
+
+# Global owners - required for all PRs
+* @codeowners
+
+# CI/CD and GitHub Actions
+/.github/ @codeowners @devops-team
+
+# Infrastructure and Kubernetes
+/infra/ @codeowners @platform-team
+/k8s/ @codeowners @platform-team
+*.yaml @codeowners @platform-team
+*.yml @codeowners @platform-team
+
+# CI/CD workflows
+/.github/workflows/ @codeowners @devops-team
+
+# Docker and containerization
+**/Dockerfile* @codeowners @devops-team
+docker-compose.yml @codeowners @devops-team
+
+# Backend Services
+/backend/products-api/ @codeowners @backend-team
+/backend/orders-api/ @codeowners @backend-team
+/backend/inventory-api/ @codeowners @backend-team
+
+# Frontend
+/frontend/ @codeowners @frontend-team
+
+# Documentation
+*.md @codeowners @documentation-team
+/docs/ @codeowners @documentation-team
+
+# Scripts
+/scripts/ @codeowners @devops-team
+
+# Configuration files
+*.json @codeowners
+*.toml @codeowners
+*.ini @codeowners
+*.env.example @codeowners
+
+# Security-sensitive files
+**/secrets/** @codeowners @security-team
+**/.env @codeowners @security-team
+
+# Note: Replace @codeowners, @devops-team, etc. with actual GitHub usernames or teams
+# Example:
+# /backend/products-api/ @username1 @username2
+# /.github/workflows/ @devops-username
+

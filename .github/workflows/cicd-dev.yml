@@ -48,7 +48,7 @@ jobs:
           
           # Define microservices (add more as needed)
           # Format: "service-name"
-          MICROSERVICES=("products-api")
+          MICROSERVICES=("products-api" "orders-api" "inventory-api")
           
           # Build and push each microservice
           for SERVICE in "${MICROSERVICES[@]}"; do
@@ -96,7 +96,7 @@ jobs:
           ECR_REGISTRY="${{ env.ECR_REGISTRY }}"
           
           # Define microservices (must match build step)
-          MICROSERVICES=("products-api")
+          MICROSERVICES=("products-api" "orders-api" "inventory-api")
           
           # Update deployment files
           for SERVICE in "${MICROSERVICES[@]}"; do
@@ -132,7 +132,7 @@ jobs:
           ROLLBACK_NEEDED=false
           
           # Define microservices (must match build step)
-          MICROSERVICES=("products-api")
+          MICROSERVICES=("products-api" "orders-api" "inventory-api")
           
           for SERVICE in "${MICROSERVICES[@]}"; do
             DEPLOYMENT_FILE="k8s/deployment-${SERVICE}.yaml"
@@ -172,7 +172,7 @@ jobs:
           echo "Deployment failed, rolling back..."
           
           # Define microservices (must match build step)
-          MICROSERVICES=("products-api")
+          MICROSERVICES=("products-api" "orders-api" "inventory-api")
           
           for SERVICE in "${MICROSERVICES[@]}"; do
             DEPLOYMENT_NAME="${SERVICE}-deployment"
