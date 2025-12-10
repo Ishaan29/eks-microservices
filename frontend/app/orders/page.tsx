@@ -58,7 +58,7 @@ export default async function OrdersPage() {
     return (
         <div className="max-w-xl mx-auto p-10 bg-white shadow-xl rounded-xl text-center mt-10">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">You have no orders</h1>
-            <p className="text-gray-600 mb-6">You haven't placed any orders yet. Once you do, they will show up here.</p>
+           <p className="text-gray-600 mb-6">You haven&apos;t placed any orders yet. Once you do, they will show up here.</p>
             <Link 
             href="/" 
             className="inline-block px-6 py-3 text-lg font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"

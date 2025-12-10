@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-crashloop-alert
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus-stack-prometheus
+    role: alert-rules
+data:
+  pod-crashloop-alert.yaml: |
+    groups:
+      - name: pod-restart-alerts
+        interval: 30s
+        rules:
+          - alert: PodCrashLoopBackOff
+            expr: kube_pod_container_status_restarts_total{namespace="dev"} >= 4
+            for: 3m
+            labels:
+              severity: critical
